@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>班級歡樂抽籤轉盤</title>
+    <!-- 引入 Tailwind CSS 提供現代化排版與樣式 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Font Awesome 提供美觀的圖示 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 引入 Google Fonts 獲取活潑字體 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        
+        /* 轉盤外圍發光與陰影特效 */
+        .wheel-container {
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+            border-radius: 50%;
+            background: #ffffff;
+            padding: 12px;
+        }
+
+        /* 轉盤指針樣式 */
+        .wheel-pointer {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 40px;
+            z-index: 10;
+            filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.3));
+        }
+
+        /* 彩帶噴發動畫 */
+        @keyframes confetti-fall {
+            0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 20px;
+            background-color: #f00;
+            opacity: 0.9;
+            z-index: 100;
+            pointer-events: none;
+            animation: confetti-fall 3s linear infinite;
+        }
+
+        /* 自訂滾動條樣式 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 flex flex-col min-height-screen">
+
+    <!-- 頁首與標題 -->
+    <header class="py-6 px-4 bg-white/80 backdrop-blur-md shadow-sm border-b border-slate-200 sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-tr from-amber-400 to-rose-500 p-3 rounded-2xl text-white shadow-md shadow-rose-200">
+                    <i class="fa-solid fa-gift text-2xl animate-bounce"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black bg-gradient-to-r from-violet-600 to-pink-600 bg-clip-text text-transparent">班級歡樂抽籤轉盤</h1>
+                    <p class="text-xs text-slate-500 font-medium">快速、隨機、公平，課堂互動的最佳幫手！</p>
+                </div>
+            </div>
+            <div class="flex gap-2 text-sm">
+                <button id="btnQuick30" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-600 font-semibold rounded-lg transition">
+                    預設 1-30 號
+                </button>
+                <button id="btnQuickClean" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-600 font-semibold rounded-lg transition">
+                    清空名單
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要內容區 -->
+    <main class="flex-grow max-w-6xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- 左側：控制面板與名單管理 (佔 5 格) -->
+        <section class="lg:col-span-5 bg-white p-6 rounded-3xl shadow-xl border border-slate-100 flex flex-col gap-5 h-full">
+            <div>
+                <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-users text-violet-500"></i>
+                    成員名單管理
+                </h2>
+                <p class="text-xs text-slate-400 mt-1">請在下方輸入名字或號碼（每行一個），系統將會動態更新轉盤。</p>
+            </div>
+
+            <!-- 名單輸入區域 -->
+            <div class="relative flex-grow">
+                <textarea id="memberInput" 
+                          class="w-full h-64 p-4 text-base border-2 border-slate-200 rounded-2xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none resize-none font-medium custom-scrollbar transition"
+                          placeholder="請輸入名單，例如：&#10;1 號&#10;2 號&#10;3 號..."></textarea>
+                <div class="absolute bottom-3 right-3 bg-slate-100 px-2.5 py-1 rounded-md text-xs font-semibold text-slate-500 border border-slate-200">
+                    共 <span id="memberCount" class="text-violet-600">0</span> 筆
+                </div>
+            </div>
+
+            <!-- 快捷增加選項 -->
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <span class="text-xs font-bold text-slate-500 block mb-2">快速新增：</span>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="appendRange(1, 10)" class="px-2 py-1 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-100 font-medium text-slate-600">+10 號</button>
+                    <button onclick="appendRange(1, 20)" class="px-2 py-1 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-100 font-medium text-slate-600">+20 號</button>
+                    <button onclick="appendRange(1, 40)" class="px-2 py-1 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-100 font-medium text-slate-600">+40 號</button>
+                    <button onclick="appendCustomName()" class="px-2 py-1 text-xs bg-violet-50 hover:bg-violet-100 text-violet-600 border border-violet-100 rounded-md font-bold">隨機範例姓名</button>
+                </div>
+            </div>
+
+            <!-- 設定選項 -->
+            <div class="space-y-3 pt-2 border-t border-slate-100">
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" id="chkRepeat" class="w-4 h-4 text-violet-600 border-slate-300 rounded focus:ring-violet-500" checked>
+                    <div class="text-sm">
+                        <span class="font-bold text-slate-700 block">允許重複抽中</span>
+                        <span class="text-xs text-slate-400">若取消勾選，抽中者會自動從左側名單中移除。</span>
+                    </div>
+                </label>
+            </div>
+        </section>
+
+        <!-- 右側：抽籤大轉盤區域 (佔 7 格) -->
+        <section class="lg:col-span-7 bg-white p-6 rounded-3xl shadow-xl border border-slate-100 flex flex-col items-center justify-center gap-6 relative overflow-hidden min-h-[500px]">
+            
+            <!-- 背景裝飾氣泡 -->
+            <div class="absolute -top-10 -right-10 w-40 h-40 bg-pink-100 rounded-full mix-blend-multiply filter blur-xl opacity-60 pointer-events-none"></div>
+            <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-violet-100 rounded-full mix-blend-multiply filter blur-xl opacity-60 pointer-events-none"></div>
+
+            <!-- 轉盤主容器 -->
+            <div class="wheel-container max-w-[380px] sm:max-w-[420px] w-full aspect-square flex items-center justify-center">
+                
+                <!-- 指針 (上方箭頭) -->
+                <div class="wheel-pointer">
+                    <!-- 精美的 SVG 指針 -->
+                    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
+                        <path d="M20 0L38 30H2C2 30 20 0 20 0Z" fill="#ef4444"/>
+                        <circle cx="20" cy="28" r="8" fill="#ef4444"/>
+                        <circle cx="20" cy="28" r="4" fill="#ffffff"/>
+                    </svg>
+                </div>
+
+                <!-- 轉盤 Canvas -->
+                <canvas id="wheelCanvas" width="500" height="500" class="w-full h-full block rounded-full transition-transform duration-75"></canvas>
+            </div>
+
+            <!-- 控制按鈕 -->
+            <div class="w-full max-w-sm flex flex-col gap-3 z-10">
+                <button id="btnSpin" class="w-full py-4 px-6 bg-gradient-to-r from-amber-500 via-rose-500 to-violet-600 hover:from-amber-600 hover:to-violet-700 text-white font-extrabold text-xl rounded-2xl shadow-lg shadow-rose-200 hover:shadow-xl hover:shadow-rose-300 transform active:scale-95 transition-all flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-dice text-2xl animate-spin-slow"></i>
+                    開始幸運抽籤！
+                </button>
+                <p class="text-center text-xs text-slate-400 font-semibold">
+                    <i class="fa-solid fa-circle-info mr-1"></i>點擊按鈕或直接「點擊轉盤中心」即可旋轉
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <!-- 頁尾 -->
+    <footer class="py-6 text-center text-xs text-slate-400 border-t border-slate-200 bg-white/50">
+        <p>© 班級歡樂抽籤轉盤 · 助您教學互動更精彩</p>
+    </footer>
+
+    <!-- 得獎彈出視窗 (Modal) -->
+    <div id="resultModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300 p-4">
+        <!-- 煙火彩帶背景容器 -->
+        <div id="confettiContainer" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+        
+        <div class="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl border border-slate-100 transform scale-90 transition-transform duration-300 relative overflow-hidden">
+            <!-- 卡片頂部彩帶裝飾 -->
+            <div class="absolute top-0 inset-x-0 h-3 bg-gradient-to-r from-amber-400 via-pink-500 to-violet-600"></div>
+
+            <div class="mb-4 text-amber-500 text-6xl">
+                <i class="fa-solid fa-crown animate-bounce"></i>
+            </div>
+            
+            <h3 class="text-slate-500 font-bold text-lg tracking-wider mb-1">恭喜中獎！</h3>
+            <p class="text-xs text-slate-400 mb-6">幸運之神降臨在您身上囉 🎉</p>
+
+            <!-- 中獎號碼/名字顯示 -->
+            <div class="bg-gradient-to-tr from-amber-50 to-rose-50 rounded-2xl py-6 px-4 mb-6 border border-amber-100 shadow-inner">
+                <span id="winnerName" class="text-4xl sm:text-5xl font-black text-rose-600 tracking-wide drop-shadow-sm break-all">
+                    無名氏
+                </span>
+            </div>
+
+            <!-- 按鈕控制 -->
+            <div class="flex gap-3">
+                <button id="btnKeepWinner" class="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-bold rounded-xl transition">
+                    保留名額
+                </button>
+                <button id="btnRemoveWinner" class="flex-1 py-3 px-4 bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white font-bold rounded-xl shadow-md shadow-rose-200 transition">
+                    從名單中移除
+                </button>
+            </div>
+            
+            <button id="btnCloseModal" class="mt-4 text-xs font-semibold text-slate-400 hover:text-slate-600 transition underline decoration-dashed underline-offset-4">
+                關閉視窗
+            </button>
+        </div>
+    </div>
+
+    <!-- 提示消息彈出層 (Toast) -->
+    <div id="toastMessage" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-lg z-50 flex items-center gap-2 opacity-0 pointer-events-none transition-all duration-300">
+        <i class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastText">提示訊息</span>
+    </div>
+
+    <script>
+        // --- 變數與 DOM 元素初始化 ---
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+        const memberInput = document.getElementById('memberInput');
+        const memberCountSpan = document.getElementById('memberCount');
+        const btnSpin = document.getElementById('btnSpin');
+        const btnQuick30 = document.getElementById('btnQuick30');
+        const btnQuickClean = document.getElementById('btnQuickClean');
+        const chkRepeat = document.getElementById('chkRepeat');
+        
+        // 彈窗
+        const resultModal = document.getElementById('resultModal');
+        const winnerName = document.getElementById('winnerName');
+        const btnKeepWinner = document.getElementById('btnKeepWinner');
+        const btnRemoveWinner = document.getElementById('btnRemoveWinner');
+        const btnCloseModal = document.getElementById('btnCloseModal');
+        const confettiContainer = document.getElementById('confettiContainer');
+
+        // Toast
+        const toastMessage = document.getElementById('toastMessage');
+        const toastText = document.getElementById('toastText');
+
+        // 轉盤狀態變數
+        let members = [];
+        let startAngle = 0; // 當前旋轉角度 (弧度)
+        let isSpinning = false;
+        let animationFrameId = null;
+        let selectedIndex = -1; // 當前抽中的索引
+
+        // 精緻配色庫 (暖色調與活力色相間，提升視覺層次)
+        const colors = [
+            '#FF6B6B', '#4D96FF', '#6BCB77', '#FFD93D', '#F473B9', 
+            '#9B5DE5', '#F15BB5', '#00F5D4', '#00BBF9', '#F3C68F',
+            '#EE5253', '#0ABDE3', '#10AC84', '#FF9F43', '#5758BB',
+            '#ED4C67', '#00D2D3', '#1DD1A1', '#FF6B6B', '#54a0ff'
+        ];
+
+        // 預設 1 到 30 號名單
+        const defaultList = Array.from({ length: 30 }, (_, i) => `${i + 1} 號`).join('\n');
+
+        // 預設隨機中文字
+        const randomNames = [
+            "小明", "美玲", "家豪", "雅婷", "志明", "淑芬", "俊傑", "麗華", "信宏", "佩君",
+            "冠宇", "婷婷", "建國", "佳穎", "承翰", "雨萱", "柏翰", "若瑄", "宇軒", "心怡"
+        ];
+
+        // --- 初始化設定 ---
+        window.onload = function() {
+            // 設定預設輸入內容
+            memberInput.value = defaultList;
+            parseMembers();
+            
+            // 監聽輸入框變更
+            memberInput.addEventListener('input', parseMembers);
+
+            // 監聽按鈕事件
+            btnSpin.addEventListener('click', startSpin);
+            canvas.addEventListener('click', startSpin); // 允許直接點擊 Canvas
+            btnQuick30.addEventListener('click', () => {
+                memberInput.value = defaultList;
+                parseMembers();
+                showToast('已恢復預設 1 到 30 號名單');
+            });
+            btnQuickClean.addEventListener('click', () => {
+                memberInput.value = '';
+                parseMembers();
+                showToast('已清空名單');
+            });
+
+            // 彈出視窗按鈕事件
+            btnKeepWinner.addEventListener('click', () => closeModal());
+            btnRemoveWinner.addEventListener('click', () => {
+                removeMemberByIndex(selectedIndex);
+                closeModal();
+            });
+            btnCloseModal.addEventListener('click', () => closeModal());
+        };
+
+        // --- 邏輯解析與資料處理 ---
+        function parseMembers() {
+            const rawText = memberInput.value;
+            // 依行切割並過濾掉空白項
+            members = rawText.split('\n')
+                             .map(item => item.trim())
+                             .filter(item => item !== '');
+            
+            memberCountSpan.textContent = members.length;
+            drawWheel();
+        }
+
+        function appendRange(start, count) {
+            const currentCount = members.length;
+            const newItems = Array.from({ length: count }, (_, i) => `${currentCount + i + 1} 號`);
+            if (memberInput.value.trim() === '') {
+                memberInput.value = newItems.join('\n');
+            } else {
+                memberInput.value = memberInput.value.trim() + '\n' + newItems.join('\n');
+            }
+            parseMembers();
+            showToast(`已追加 ${count} 個號碼`);
+        }
+
+        function appendCustomName() {
+            const shuffle = [...randomNames].sort(() => 0.5 - Math.random()).slice(0, 5);
+            if (memberInput.value.trim() === '') {
+                memberInput.value = shuffle.join('\n');
+            } else {
+                memberInput.value = memberInput.value.trim() + '\n' + shuffle.join('\n');
+            }
+            parseMembers();
+            showToast('已追加 5 個隨機姓名');
+        }
+
+        function removeMemberByIndex(index) {
+            if (index < 0 || index >= members.length) return;
+            const removedName = members[index];
+            members.splice(index, 1);
+            memberInput.value = members.join('\n');
+            parseMembers();
+            showToast(`已移除「${removedName}」`);
+        }
+
+        // --- 繪製轉盤邏輯 (HTML5 Canvas) ---
+        function drawWheel() {
+            const size = canvas.width;
+            const center = size / 2;
+            const radius = center - 20; // 留點邊距給外框與陰影
+
+            // 清除畫布
+            ctx.clearRect(0, 0, size, size);
+
+            if (members.length === 0) {
+                // 如果名單為空，繪製提示畫面
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(center, center, radius, 0, 2 * Math.PI);
+                ctx.fillStyle = '#f8fafc';
+                ctx.fill();
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = '#cbd5e1';
+                ctx.stroke();
+
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = 'bold 20px Noto Sans TC';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('請在左側輸入名單！', center, center);
+                ctx.restore();
+                return;
+            }
+
+            const arc = (2 * Math.PI) / members.length;
+
+            ctx.save();
+            // 移動原點到中心
+            ctx.translate(center, center);
+
+            for (let i = 0; i < members.length; i++) {
+                const angle = startAngle + i * arc;
+                
+                // 1. 繪製扇形扇面
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, radius, angle, angle + arc);
+                ctx.closePath();
+                
+                // 循環使用預設配色
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.fill();
+
+                // 2. 繪製細緻白色分割線
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                // 3. 繪製文字
+                ctx.save();
+                ctx.fillStyle = '#ffffff';
+                
+                // 根據名單多寡動態調整文字大小
+                let fontSize = 16;
+                if (members.length > 20) fontSize = 12;
+                if (members.length > 40) fontSize = 10;
+                ctx.font = `bold ${fontSize}px Noto Sans TC`;
+                
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+                
+                // 將畫布旋轉到該扇形的中央位置
+                ctx.rotate(angle + arc / 2);
+                
+                // 限制文字最大長度，防止超出圓心
+                const textX = radius - 25;
+                const maxTextWidth = radius * 0.6;
+                
+                // 繪製文字 (加入白色發光文字陰影提高可讀性)
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+                ctx.shadowBlur = 4;
+                ctx.fillText(members[i], textX, 0, maxTextWidth);
+                
+                ctx.restore();
+            }
+
+            ctx.restore();
+
+            // 4. 繪製正中央的亮麗圓鈕裝飾 (Center Hub)
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(center, center, 32, 0, 2 * Math.PI);
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+            ctx.shadowBlur = 8;
+            ctx.fill();
+
+            // 中心內圓
+            ctx.beginPath();
+            ctx.arc(center, center, 24, 0, 2 * Math.PI);
+            // 漸層中心
+            const gradient = ctx.createRadialGradient(center, center, 2, center, center, 24);
+            gradient.addColorStop(0, '#f43f5e');
+            gradient.addColorStop(1, '#be123c');
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            // 中心小圓點
+            ctx.beginPath();
+            ctx.arc(center, center, 6, 0, 2 * Math.PI);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // --- 旋轉物理動畫 ---
+        function startSpin() {
+            if (isSpinning) return;
+            if (members.length === 0) {
+                showToast('請先輸入名單才能抽籤唷！');
+                return;
+            }
+
+            isSpinning = true;
+            btnSpin.disabled = true;
+            btnSpin.classList.add('opacity-75', 'cursor-not-allowed');
+
+            // 隨機旋轉的起始動能與加速度
+            let spinAngleStart = Math.random() * 15 + 20; // 隨機初速度 (20 到 35 之間)
+            let spinTime = 0;
+            const spinTimeTotal = Math.random() * 3000 + 4000; // 旋轉總時間 (4 秒至 7 秒之間)
+
+            function rotateWheel() {
+                spinTime += 16.67; // 約 60 FPS 的幀間隔
+                
+                if (spinTime >= spinTimeTotal) {
+                    // 動畫結束，計算結果
+                    stopRotate();
+                    return;
+                }
+
+                // 使用經典的 Ease-Out 減速曲線演算旋轉角度
+                const progress = spinTime / spinTimeTotal;
+                const easeOut = 1 - Math.pow(1 - progress, 3); // 漸進減速
+                const currentSpeed = spinAngleStart * (1 - easeOut);
+
+                // 更新旋轉角度 (轉速乘上時間增量)
+                startAngle += (currentSpeed * Math.PI) / 180;
+                drawWheel();
+                
+                animationFrameId = requestAnimationFrame(rotateWheel);
+            }
+
+            rotateWheel();
+        }
+
+        // --- 旋轉停止邏輯 ---
+        function stopRotate() {
+            cancelAnimationFrame(animationFrameId);
+            isSpinning = false;
+            btnSpin.disabled = false;
+            btnSpin.classList.remove('opacity-75', 'cursor-not-allowed');
+
+            // 計算指針指向的得獎者
+            // 指針在最上方，對應 Canvas 的角度為 -90度 (即 1.5 * Math.PI)
+            const arc = (2 * Math.PI) / members.length;
+            
+            // 計算目前轉盤旋轉累積的角度並轉換為 0 ~ 2*PI 範圍
+            let degrees = (startAngle * 180) / Math.PI;
+            let arcd = (arc * 180) / Math.PI;
+            
+            // 指針所在基準角為 270 度 (上方)
+            // 扇形是由 startAngle 開始往順時針方向畫。
+            // 計算：(270 - 轉盤旋轉度數) 補足 360 的餘數
+            let index = Math.floor((270 - degrees % 360 + 360) % 360 / arcd);
+            
+            // 防呆越界處理
+            if (index < 0) index = 0;
+            if (index >= members.length) index = members.length - 1;
+
+            selectedIndex = index;
+            
+            // 顯示得獎名單與慶祝特效
+            showWinner(members[selectedIndex]);
+        }
+
+        // --- 得獎彈窗與特效 ---
+        function showWinner(name) {
+            winnerName.textContent = name;
+            
+            // 如果設為「不重複抽中」，則預設將右側按鈕改為著重顯示
+            if (!chkRepeat.checked) {
+                btnRemoveWinner.className = "flex-1 py-3 px-4 bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white font-bold rounded-xl shadow-md shadow-rose-200 transition";
+                btnKeepWinner.className = "flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-bold rounded-xl transition";
+            } else {
+                btnKeepWinner.className = "flex-1 py-3 px-4 bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white font-bold rounded-xl shadow-md shadow-indigo-200 transition";
+                btnRemoveWinner.className = "flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-bold rounded-xl transition";
+            }
+
+            // 開啟 Modal 顯示動畫
+            resultModal.classList.remove('opacity-0', 'pointer-events-none');
+            resultModal.querySelector('div').classList.remove('scale-90');
+            resultModal.querySelector('div').classList.add('scale-100');
+
+            // 啟動彩帶飄落特效
+            createConfetti();
+        }
+
+        function closeModal() {
+            resultModal.classList.add('opacity-0', 'pointer-events-none');
+            resultModal.querySelector('div').classList.remove('scale-100');
+            resultModal.querySelector('div').classList.add('scale-90');
+            // 清理彩帶
+            confettiContainer.innerHTML = '';
+        }
+
+        // 噴發彩帶效果
+        function createConfetti() {
+            confettiContainer.innerHTML = '';
+            const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+            
+            for (let i = 0; i < 60; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                
+                // 隨機定位、色彩與落速
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+                
+                // 隨機動畫參數
+                const duration = Math.random() * 2 + 1.5; // 1.5s - 3.5s
+                const delay = Math.random() * 0.5;
+                confetti.style.animation = `confetti-fall ${duration}s ${delay}s linear infinite`;
+                
+                // 隨機形狀大小
+                const width = Math.random() * 6 + 6;
+                confetti.style.width = width + 'px';
+                confetti.style.height = (width * 1.6) + 'px';
+
+                confettiContainer.appendChild(confetti);
+            }
+        }
+
+        // --- 提示訊息 Toast ---
+        let toastTimeout;
+        function showToast(text) {
+            clearTimeout(toastTimeout);
+            toastText.textContent = text;
+            toastMessage.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-2');
+            toastMessage.classList.add('opacity-100', 'translate-y-0');
+
+            toastTimeout = setTimeout(() => {
+                toastMessage.classList.remove('opacity-100', 'translate-y-0');
+                toastMessage.classList.add('opacity-0', 'pointer-events-none', 'translate-y-2');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
